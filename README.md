@@ -19,11 +19,15 @@ cd build
 cmake ..
 make
 ```
+after this if you want to install it to ``/usr/local/bin``:  
+```
+sudo make install
+```
 
 ## Usage
 
 ```
-./iceprog-rpicsi flash.bin
+./iceprog-rpispi flash.bin
 ```
 
 ## Pin connections
