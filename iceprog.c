@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2015  Clifford Wolf <clifford@clifford.at>
  *  Copyright (C) 2018  Piotr Esden-Tempski <piotr@esden.net>
- *  Copyright (C) 2019  Adrian Kaul aka zaurak <zaurak@5nl.de>
+ *  Copyright (C) 2019  Adrian Kaul aka zzaurak <zaurak@5nl.de>
  *
  *  Permission to use, copy, modify, and/or distribute this software for any
  *  purpose with or without fee is hereby granted, provided that the above
