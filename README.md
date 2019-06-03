@@ -10,6 +10,8 @@ Use at your own risk. Other modes still need testing, happy to accept pull reque
 
 ## Build
 
+NOTE: at first you need to enable the HW SPI Interface via raspi-config and reboot.   
+
 ```
 mkdir build
 cd build
@@ -25,3 +27,9 @@ make
 
 ## Pin connections
 ![pinout](pinout.png)
+
+## SPIDEV Driver limitations
+
+By default the spidev driver on raspberry pi has a maximum transfer size of 4096 bytes.  
+That might cause problems with this software so to change the default buffersize add `spidev.bufsiz=65536` to `/boot/cmdline.txt` and reboot.   
+Where 65536 is the maximum size you want to allow.
