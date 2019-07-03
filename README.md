@@ -9,6 +9,12 @@ This is very alpha! I just tested it with an Icebreaker and an Raspberry 3B+ in 
 Use at your own risk.  
 This will only be able to flash the external SPI Flash, direct SRAM mode will not work due to swapped MISO/MOSI lines.
 
+## Dependencies
+
+```
+sudo apt install cmake wiringpi
+```
+
 ## Build
 
 NOTE: at first you need to enable the HW SPI Interface via raspi-config and reboot.   
