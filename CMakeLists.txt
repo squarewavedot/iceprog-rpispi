@@ -7,5 +7,5 @@ set(SOURCE_FILES
         rpispi.c)
 
 add_executable(iceprog-rpispi ${SOURCE_FILES})
-target_link_libraries(iceprog-rpispi ftdi wiringPi)
+target_link_libraries(iceprog-rpispi wiringPi)
 install(TARGETS iceprog-rpispi DESTINATION bin)
