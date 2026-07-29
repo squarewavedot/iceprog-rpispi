@@ -61,18 +61,18 @@ int initSpi(unsigned int speed) {
         exit(1);
     }
 
-    /* Mode2 setzen */
+    /* Mode2 setzen (SPI_NO_CS ist auf manchen Controllern, z.B. RP1/spi_dw
+     * auf dem Raspberry Pi 5, nicht unterstuetzt; CS wird hier ohnehin
+     * per GPIO manuell geschaltet, daher ist ein Fehlschlag unkritisch) */
     ret = ioctl(spiDevFilehandle, SPI_IOC_WR_MODE32, &spiMode2);
     if (ret < 0) {
-        perror("Fehler Set SPI-Modus2");
-        exit(1);
+        perror("Warnung Set SPI-Modus2");
     }
 
     /* Mode2 abfragen */
     ret = ioctl(spiDevFilehandle, SPI_IOC_RD_MODE32, &spiMode2);
     if (ret < 0) {
-        perror("Fehler Get SPI-Modus2");
-        exit(1);
+        perror("Warnung Get SPI-Modus2");
     }
 
     /* Wortlaenge setzen */

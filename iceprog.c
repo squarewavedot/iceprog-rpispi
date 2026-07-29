@@ -43,6 +43,15 @@
 #define BCM_CS_PIN 4
 #define BCM_CDONE_PIN 17
 
+/* Hardware SPI0 pins (MISO, MOSI, SCLK). These are muxed to their ALT0
+ * (hardware SPI) function by the kernel as soon as dtparam=spi=on is
+ * active, independent of whether this program is running. On this board
+ * they share the same physical flash bus as the FPGA's own dedicated
+ * hard-SPI (bridged through J11/J12), so leaving them in ALT0 prevents
+ * the FPGA from reading a clean flash image after CRESET_B is released. */
+static const int SPI_DATA_PINS[] = { 9, 10, 11 };
+#define NUM_SPI_DATA_PINS (sizeof(SPI_DATA_PINS) / sizeof(SPI_DATA_PINS[0]))
+
 static bool verbose = false;
 
 // ---------------------------------------------------------
@@ -130,6 +139,63 @@ static bool get_cdone(void)
 	// ADBUS6 (GPIOL2)
     return digitalRead(BCM_CDONE_PIN);
 //	return (mpsse_readb_low() & 0x40) != 0;
+}
+
+// ---------------------------------------------------------
+// RPi hardware SPI0 bus mux control
+//
+// The RPi's hardware SPI0 pins share the flash bus with the FPGA's own
+// dedicated hard-SPI. They must only be driven (ALT0) while this program
+// is actively talking to the flash, and must be released to Hi-Z input
+// before CRESET_B is released, or the FPGA cannot reliably read the flash.
+// ---------------------------------------------------------
+
+static void pinctrl_set_pin(int pin, const char *opts)
+{
+	char cmd[64];
+	snprintf(cmd, sizeof(cmd), "pinctrl set %d %s >/dev/null 2>&1", pin, opts);
+	if (system(cmd) != 0)
+		fprintf(stderr, "warning: `%s` failed (is pinctrl installed?)\n", cmd);
+}
+
+// Returns true if any of the hardware SPI0 data pins are currently muxed
+// to their ALT0 (SPI) function, i.e. something other than this program's
+// own spi_bus_enable() has the bus active.
+static bool spi_bus_is_active(void)
+{
+	for (size_t i = 0; i < NUM_SPI_DATA_PINS; i++) {
+		char cmd[64];
+		snprintf(cmd, sizeof(cmd), "pinctrl get %d", SPI_DATA_PINS[i]);
+
+		FILE *p = popen(cmd, "r");
+		if (p == NULL)
+			continue;
+
+		char line[128] = { 0 };
+		fgets(line, sizeof(line), p);
+		pclose(p);
+
+		if (strstr(line, "a0") != NULL)
+			return true;
+	}
+	return false;
+}
+
+// Mux the hardware SPI0 pins to their ALT0 (SPI) function.
+static void spi_bus_enable(void)
+{
+	for (size_t i = 0; i < NUM_SPI_DATA_PINS; i++)
+		pinctrl_set_pin(SPI_DATA_PINS[i], "a0");
+}
+
+// Release the hardware SPI0 pins (and the bit-banged flash CS pin) to
+// Hi-Z input so they stop driving the shared flash bus, letting the FPGA
+// read flash cleanly once CRESET_B is released.
+static void spi_bus_disable(void)
+{
+	for (size_t i = 0; i < NUM_SPI_DATA_PINS; i++)
+		pinctrl_set_pin(SPI_DATA_PINS[i], "ip pn");
+	pinctrl_set_pin(BCM_CS_PIN, "ip pn");
 }
 
 // ---------------------------------------------------------
@@ -801,8 +867,17 @@ int main(int argc, char **argv)
 
 	fprintf(stderr, "init..\n");
 
+	if (spi_bus_is_active())
+		fprintf(stderr,
+			"WARNING: RPi hardware SPI0 pins are already active (ALT0) before this "
+			"program touched anything. Something other than this program's own flash "
+			"access (e.g. `dtparam=spi=on` at boot, or another process holding the SPI "
+			"device) is leaving the flash bus driven, which can prevent the FPGA from "
+			"configuring after a plain CRESET_B reset outside of this tool as well.\n");
+
 	initSpi(15000000);
 	initGpio();
+	spi_bus_enable();
 
 	fprintf(stderr, "cdone: %s\n", get_cdone() ? "high" : "low");
 
@@ -825,6 +900,7 @@ int main(int argc, char **argv)
 
 		flash_power_down();
 
+		spi_bus_disable();
 		flash_release_reset();
 		usleep(250000);
 
@@ -862,6 +938,7 @@ int main(int argc, char **argv)
             SpiWriteRead(buffer, rc);
 		}
 
+		spi_bus_disable();
 
 		fprintf(stderr, "cdone: %s\n", get_cdone() ? "high" : "low");
 	}
@@ -977,6 +1054,7 @@ int main(int argc, char **argv)
 
 		flash_power_down();
 
+		spi_bus_disable();
 		set_cs_creset(1, 1);
 		usleep(250000);
 
